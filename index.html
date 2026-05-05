@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WonderBot Kinematics Simulator</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #21253a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #e8eaf0;
+    --text2: #8b90a8;
+    --text3: #555a72;
+    --accent: #1D9E75;
+    --accent2: #0f6e56;
+    --accent3: #9FE1CB;
+    --blue: #378ADD;
+    --blue2: #185FA5;
+    --amber: #EF9F27;
+    --red: #E24B4A;
+    --font: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --font-ui: 'Inter', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border2);
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .logo {
+    width: 36px;
+    height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo svg { width: 20px; height: 20px; }
+
+  header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  header p {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 1px;
+  }
+
+  .badge {
+    margin-left: auto;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--text2);
+    font-family: var(--font);
+  }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 0;
+    height: calc(100vh - 61px);
+  }
+
+  .canvas-section {
+    position: relative;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .canvas-overlay {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: rgba(15,17,23,0.85);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-family: var(--font);
+    font-size: 11px;
+    color: var(--text2);
+    backdrop-filter: blur(8px);
+    line-height: 1.8;
+    min-width: 180px;
+  }
+
+  .canvas-overlay .val { color: var(--accent3); font-weight: 500; }
+  .canvas-overlay .val.neg { color: var(--red); }
+
+  .overlay-row { display: flex; justify-content: space-between; gap: 1.5rem; }
+
+  .info-pill {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15,17,23,0.9);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: var(--text2);
+    backdrop-filter: blur(8px);
+    white-space: nowrap;
+    text-align: center;
+    max-width: 90%;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .info-pill span { color: var(--accent3); font-weight: 500; }
+
+  .sidebar {
+    background: var(--surface);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-section {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 1rem;
+  }
+
+  .slider-group { margin-bottom: 1.25rem; }
+  .slider-group:last-child { margin-bottom: 0; }
+
+  .slider-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .slider-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .slider-name sub {
+    font-size: 10px;
+    color: var(--text2);
+  }
+
+  .slider-value {
+    font-family: var(--font);
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--accent3);
+    min-width: 70px;
+    text-align: right;
+  }
+
+  .slider-value .unit {
+    font-size: 11px;
+    color: var(--text3);
+    font-weight: 400;
+  }
+
+  input[type=range] {
+    width: 100%;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface2);
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg);
+    transition: transform 0.1s;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+  input[type=range].omega::-webkit-slider-thumb { background: var(--blue); }
+
+  .range-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text3);
+    margin-top: 4px;
+    font-family: var(--font);
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+
+  .stat-card.accent { border-color: rgba(29,158,117,0.3); }
+  .stat-card.blue { border-color: rgba(55,138,221,0.3); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text3);
+    font-family: var(--font);
+    margin-bottom: 4px;
+  }
+
+  .stat-val {
+    font-size: 15px;
+    font-weight: 500;
+    font-family: var(--font);
+    color: var(--text);
+  }
+
+  .stat-val.pos { color: var(--accent3); }
+  .stat-val.neg { color: var(--red); }
+  .stat-val.neutral { color: var(--text2); }
+
+  .presets-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .preset-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--text2);
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font-ui);
+    transition: all 0.15s;
+    line-height: 1.3;
+  }
+
+  .preset-btn:hover {
+    background: var(--surface);
+    border-color: var(--accent);
+    color: var(--text);
+  }
+
+  .preset-btn .preset-icon {
+    font-size: 14px;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .reset-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 12px;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: var(--font-ui);
+    margin-top: 8px;
+    transition: all 0.15s;
+  }
+
+  .reset-btn:hover { border-color: var(--amber); color: var(--amber); }
+
+  .eq-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: var(--font);
+    font-size: 11px;
+    line-height: 2;
+    color: var(--text2);
+  }
+
+  .eq-block .highlight { color: var(--accent3); font-weight: 500; }
+  .eq-block .eq-val { color: var(--blue); }
+  .eq-block .comment { color: var(--text3); }
+
+  .param-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-family: var(--font);
+    padding: 3px 0;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+  }
+
+  .param-row:last-child { border-bottom: none; }
+  .param-row .pval { color: var(--amber); }
+
+  .sidebar-footer {
+    padding: 1rem 1.5rem;
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer-text {
+    font-size: 10px;
+    color: var(--text3);
+    line-height: 1.6;
+    font-family: var(--font);
+  }
+
+  @media (max-width: 768px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
+    .canvas-section { border-right: none; border-bottom: 1px solid var(--border); }
+    canvas { width: 100%; height: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="6" width="14" height="10" rx="2" fill="white" opacity="0.9"/>
+      <rect x="1" y="8" width="3" height="6" rx="1" fill="white" opacity="0.6"/>
+      <rect x="16" y="8" width="3" height="6" rx="1" fill="white" opacity="0.6"/>
+      <polygon points="10,2 7,6 13,6" fill="white" opacity="0.9"/>
+    </svg>
+  </div>
+  <div>
+    <h1>WonderBot Kinematics Simulator</h1>
+    <p>Workshop 2.4 — Differential drive kinematics, live</p>
+  </div>
+  <div class="badge">v = 0.20 m/s &nbsp;|&nbsp; ω = 0.00 rad/s</div>
+</header>
+
+<main>
+  <div class="canvas-section">
+    <canvas id="simCanvas"></canvas>
+    <div class="canvas-overlay" id="overlayBox">
+      <div class="overlay-row"><span>pose x</span><span class="val" id="ox">0.00 m</span></div>
+      <div class="overlay-row"><span>pose y</span><span class="val" id="oy">0.00 m</span></div>
+      <div class="overlay-row"><span>heading θ</span><span class="val" id="oth">0°</span></div>
+    </div>
+    <div class="info-pill" id="infoPill">Both wheels at the same speed — WonderBot drives <span>straight</span>.</div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="section-label">Command inputs</div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-name">v &nbsp;<span style="font-size:11px;color:var(--text3)">linear velocity</span></div>
+          <div class="slider-value"><span id="vDisplay">0.20</span> <span class="unit">m/s</span></div>
+        </div>
+        <input type="range" id="vSlider" min="-0.5" max="0.5" step="0.01" value="0.2">
+        <div class="range-labels"><span>-0.5 backward</span><span>+0.5 forward</span></div>
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-header">
+          <div class="slider-name">ω &nbsp;<span style="font-size:11px;color:var(--text3)">angular velocity</span></div>
+          <div class="slider-value" style="color:var(--blue);"><span id="wDisplay">0.00</span> <span class="unit">rad/s</span></div>
+        </div>
+        <input type="range" class="omega" id="wSlider" min="-2" max="2" step="0.01" value="0">
+        <div class="range-labels"><span>-2 clockwise</span><span>+2 anticlockwise</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Inverse kinematics output</div>
+      <div class="stats-grid">
+        <div class="stat-card accent">
+          <div class="stat-label">v_left</div>
+          <div class="stat-val" id="vlVal">0.20</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">m/s</div>
+        </div>
+        <div class="stat-card accent">
+          <div class="stat-label">v_right</div>
+          <div class="stat-val" id="vrVal">0.20</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">m/s</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">PWM_left</div>
+          <div class="stat-val" id="pwmlVal">102</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">-255 to 255</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">PWM_right</div>
+          <div class="stat-val" id="pwmrVal">102</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">-255 to 255</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Try these behaviours</div>
+      <div class="presets-grid">
+        <button class="preset-btn" onclick="setPreset(0.2,0)"><span class="preset-icon">→</span>Drive straight</button>
+        <button class="preset-btn" onclick="setPreset(-0.2,0)"><span class="preset-icon">←</span>Drive backward</button>
+        <button class="preset-btn" onclick="setPreset(0,1.5)"><span class="preset-icon">↺</span>Spin left</button>
+        <button class="preset-btn" onclick="setPreset(0,-1.5)"><span class="preset-icon">↻</span>Spin right</button>
+        <button class="preset-btn" onclick="setPreset(0.2,1)"><span class="preset-icon">↖</span>Curve left</button>
+        <button class="preset-btn" onclick="setPreset(0.2,-1)"><span class="preset-icon">↗</span>Curve right</button>
+      </div>
+      <button class="reset-btn" onclick="resetRobot()">Reset position</button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">The equations</div>
+      <div class="eq-block">
+        <div><span class="highlight">v_left</span>  = v − ω × (l/2)</div>
+        <div><span class="highlight">v_right</span> = v + ω × (l/2)</div>
+        <div style="margin-top:6px"><span class="highlight">PWM</span> = (v_w / v_max) × 255</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="section-label">Robot parameters</div>
+      <div class="param-row"><span>wheel radius r</span><span class="pval">0.0325 m</span></div>
+      <div class="param-row"><span>track width l</span><span class="pval">0.215 m</span></div>
+      <div class="param-row"><span>encoder N</span><span class="pval">3840 counts/rev</span></div>
+      <div class="param-row"><span>v_max (placeholder)</span><span class="pval">0.5 m/s</span></div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="footer-text">WonderBot — Stage 2 Workshop 2.4<br>Northumbria University Robotics Course</div>
+    </div>
+  </div>
+</main>
+
+<script>
+const canvas = document.getElementById('simCanvas');
+const ctx = canvas.getContext('2d');
+
+const l = 0.215, r_wheel = 0.0325, vmax = 0.5;
+let v = 0.2, omega = 0;
+let robot = { x: 0, y: 0, theta: 0 };
+let trail = [];
+const SCALE = 180;
+let W, H, cx, cy;
+
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+  W = canvas.width; H = canvas.height;
+  cx = W/2; cy = H/2;
+}
+
+window.addEventListener('resize', resize);
+resize();
+
+function clamp(val, lo, hi) { return Math.max(lo, Math.min(hi, val)); }
+
+function getWheelSpeeds() {
+  return { vl: v - omega*(l/2), vr: v + omega*(l/2) };
+}
+
+function getPWM(vw) { return clamp(Math.round((vw/vmax)*255), -255, 255); }
+
+function getColor(val) {
+  if (Math.abs(val) < 0.001) return 'var(--text2)';
+  return val > 0 ? '#9FE1CB' : '#E24B4A';
+}
+
+function updateUI() {
+  const { vl, vr } = getWheelSpeeds();
+  const pwml = getPWM(vl), pwmr = getPWM(vr);
+
+  document.getElementById('vDisplay').textContent = v.toFixed(2);
+  document.getElementById('wDisplay').textContent = omega.toFixed(2);
+  document.querySelector('.badge').textContent = `v = ${v.toFixed(2)} m/s  |  ω = ${omega.toFixed(2)} rad/s`;
+
+  const vlEl = document.getElementById('vlVal');
+  vlEl.textContent = vl.toFixed(3);
+  vlEl.style.color = getColor(vl);
+
+  const vrEl = document.getElementById('vrVal');
+  vrEl.textContent = vr.toFixed(3);
+  vrEl.style.color = getColor(vr);
+
+  const pwmlEl = document.getElementById('pwmlVal');
+  pwmlEl.textContent = pwml;
+  pwmlEl.style.color = getColor(pwml);
+
+  const pwmrEl = document.getElementById('pwmrVal');
+  pwmrEl.textContent = pwmr;
+  pwmrEl.style.color = getColor(pwmr);
+
+  const xm = (robot.x / SCALE).toFixed(2);
+  const ym = (-robot.y / SCALE).toFixed(2);
+  const deg = Math.round(((robot.theta * 180/Math.PI) % 360 + 360) % 360);
+
+  document.getElementById('ox').textContent = xm + ' m';
+  document.getElementById('oy').textContent = ym + ' m';
+  document.getElementById('oth').textContent = deg + '°';
+  document.getElementById('ox').style.color = parseFloat(xm) < 0 ? '#E24B4A' : '#9FE1CB';
+  document.getElementById('oy').style.color = parseFloat(ym) < 0 ? '#E24B4A' : '#9FE1CB';
+
+  let info = '';
+  const av = Math.abs(v), aw = Math.abs(omega);
+  if (av < 0.01 && aw < 0.01) info = 'Both wheels stopped — WonderBot is <span>stationary</span>.';
+  else if (aw < 0.01) info = v > 0 ? 'Both wheels at the same speed — WonderBot drives <span>straight</span>.' : 'Both wheels reversed — WonderBot drives <span>straight backward</span>.';
+  else if (av < 0.01) info = omega > 0 ? 'Wheels in opposite directions — WonderBot <span>spins anticlockwise</span> on the spot.' : 'Wheels in opposite directions — WonderBot <span>spins clockwise</span> on the spot.';
+  else if (v > 0 && omega > 0) info = 'Right wheel faster — WonderBot <span>curves left</span>.';
+  else if (v > 0 && omega < 0) info = 'Left wheel faster — WonderBot <span>curves right</span>.';
+  else info = 'WonderBot is moving and turning.';
+  document.getElementById('infoPill').innerHTML = info;
+}
+
+function drawGrid() {
+  ctx.save();
+  const step = SCALE * 0.25;
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 0.5;
+  const ox = cx + robot.x % step, oy = cy + robot.y % step;
+  for (let x = ox % step; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = oy % step; y < H; y += step) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+}
+
+function worldToScreen(wx, wy) {
+  return { sx: cx + wx, sy: cy + wy };
+}
+
+function drawTrail() {
+  if (trail.length < 2) return;
+  ctx.save();
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i < trail.length; i++) {
+    const alpha = (i / trail.length) * 0.6;
+    ctx.strokeStyle = `rgba(29,158,117,${alpha})`;
+    ctx.beginPath();
+    const p0 = worldToScreen(trail[i-1].x, trail[i-1].y);
+    const p1 = worldToScreen(trail[i].x, trail[i].y);
+    ctx.moveTo(p0.sx, p0.sy);
+    ctx.lineTo(p1.sx, p1.sy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawAxes() {
+  const { sx, sy } = worldToScreen(robot.x, robot.y);
+  ctx.save();
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = '#378ADD';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(sx-12, sy); ctx.lineTo(sx+12, sy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx, sy-12); ctx.lineTo(sx, sy+12); ctx.stroke();
+  ctx.restore();
+}
+
+function drawRobot() {
+  const { sx, sy } = worldToScreen(robot.x, robot.y);
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.rotate(robot.theta + Math.PI/2);
+
+  const bw = 32, bh = 24;
+
+  ctx.shadowColor = 'rgba(29,158,117,0.4)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#1D9E75';
+  ctx.beginPath();
+  ctx.roundRect(-bw/2, -bh/2, bw, bh, 4);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#0f6e56';
+  ctx.fillRect(-bw/2-5, -7, 5, 14);
+  ctx.fillRect(bw/2, -7, 5, 14);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.roundRect(-bw/2+3, -bh/2+3, bw-6, bh/2-4, 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath();
+  ctx.moveTo(0, -bh/2-8);
+  ctx.lineTo(-5, -bh/2);
+  ctx.lineTo(5, -bh/2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function step() {
+  const dt = 0.016;
+  const dtheta = omega * dt;
+  const dx = v * Math.cos(robot.theta + dtheta/2) * dt * SCALE;
+  const dy = v * Math.sin(robot.theta + dtheta/2) * dt * SCALE;
+  robot.x += dx;
+  robot.y += dy;
+  robot.theta += dtheta;
+  trail.push({ x: robot.x, y: robot.y });
+  if (trail.length > 1200) trail.shift();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  drawGrid();
+  drawAxes();
+  drawTrail();
+  drawRobot();
+}
+
+function loop() {
+  step();
+  draw();
+  updateUI();
+  requestAnimationFrame(loop);
+}
+
+function setPreset(sv, sw) {
+  v = sv; omega = sw;
+  document.getElementById('vSlider').value = sv;
+  document.getElementById('wSlider').value = sw;
+}
+
+function resetRobot() {
+  robot = { x: 0, y: 0, theta: 0 };
+  trail = [];
+}
+
+document.getElementById('vSlider').addEventListener('input', e => { v = parseFloat(e.target.value); });
+document.getElementById('wSlider').addEventListener('input', e => { omega = parseFloat(e.target.value); });
+
+loop();
+</script>
+</body>
+</html>
