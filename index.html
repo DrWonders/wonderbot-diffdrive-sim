@@ -520,6 +520,7 @@ let totalLeft = 0, totalRight = 0;
 let accumLeft = 0, accumRight = 0;
 let deltaLeft = 0, deltaRight = 0;
 let lastEncoderTime = 0;
+let encoderFlash = false;
 
 function resize() {
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -576,14 +577,35 @@ function updateUI() {
   document.getElementById('ox').style.color = parseFloat(xm) < 0 ? '#E24B4A' : '#F5A623';
   document.getElementById('oy').style.color = parseFloat(ym) < 0 ? '#E24B4A' : '#F5A623';
 
-  document.getElementById('dtlVal').textContent = deltaLeft;
-  document.getElementById('dtlVal').style.color = deltaLeft === 0 ? 'var(--text2)' : deltaLeft > 0 ? '#F5A623' : '#E24B4A';
-  document.getElementById('dtrVal').textContent = deltaRight;
-  document.getElementById('dtrVal').style.color = deltaRight === 0 ? 'var(--text2)' : deltaRight > 0 ? '#F5A623' : '#E24B4A';
-  document.getElementById('tlVal').textContent = totalLeft;
-  document.getElementById('tlVal').style.color = totalLeft === 0 ? 'var(--text2)' : totalLeft > 0 ? '#7BB8F0' : '#E24B4A';
-  document.getElementById('trVal').textContent = totalRight;
-  document.getElementById('trVal').style.color = totalRight === 0 ? 'var(--text2)' : totalRight > 0 ? '#7BB8F0' : '#E24B4A';
+  const dtlEl = document.getElementById('dtlVal');
+  const dtrEl = document.getElementById('dtrVal');
+  const tlEl  = document.getElementById('tlVal');
+  const trEl  = document.getElementById('trVal');
+
+  dtlEl.textContent = deltaLeft;
+  dtlEl.style.color = deltaLeft === 0 ? 'var(--text2)' : deltaLeft > 0 ? '#F5A623' : '#E24B4A';
+  dtrEl.textContent = deltaRight;
+  dtrEl.style.color = deltaRight === 0 ? 'var(--text2)' : deltaRight > 0 ? '#F5A623' : '#E24B4A';
+  tlEl.textContent  = totalLeft;
+  tlEl.style.color  = totalLeft === 0 ? 'var(--text2)' : totalLeft > 0 ? '#7BB8F0' : '#E24B4A';
+  trEl.textContent  = totalRight;
+  trEl.style.color  = totalRight === 0 ? 'var(--text2)' : totalRight > 0 ? '#7BB8F0' : '#E24B4A';
+
+  if (encoderFlash) {
+    ['dtlVal','dtrVal','tlVal','trVal'].forEach(id => {
+      const el = document.getElementById(id);
+      const card = el.closest('.stat-card');
+      if (card) {
+        card.style.transition = 'background 0.05s';
+        card.style.background = 'rgba(245,166,35,0.18)';
+        setTimeout(() => {
+          card.style.background = '';
+          card.style.transition = 'background 0.3s';
+        }, 80);
+      }
+    });
+    encoderFlash = false;
+  }
 
   let info = '';
   const av = Math.abs(v), aw = Math.abs(omega);
@@ -624,6 +646,7 @@ function step() {
     accumLeft  = 0;
     accumRight = 0;
     lastEncoderTime = now;
+    encoderFlash = true;
   }
 }
 
@@ -744,6 +767,7 @@ function resetRobot() {
   accumLeft = 0; accumRight = 0;
   deltaLeft = 0; deltaRight = 0;
   lastEncoderTime = 0;
+  encoderFlash = false;
 }
 
 document.getElementById('vSlider').addEventListener('input', e => {
