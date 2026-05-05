@@ -85,7 +85,7 @@
 
   main {
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: 1fr 420px;
     gap: 0;
     height: calc(100vh - 61px);
   }
@@ -425,27 +425,53 @@
     </div>
 
     <div class="sidebar-section">
-      <div class="section-label">Inverse kinematics output</div>
+      <div class="section-label">Inverse kinematics — wheel speeds &amp; PWM</div>
       <div class="stats-grid">
         <div class="stat-card accent">
           <div class="stat-label">v_left</div>
-          <div class="stat-val" id="vlVal">0.20</div>
+          <div class="stat-val" id="vlVal">0.000</div>
           <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">m/s</div>
         </div>
         <div class="stat-card accent">
           <div class="stat-label">v_right</div>
-          <div class="stat-val" id="vrVal">0.20</div>
+          <div class="stat-val" id="vrVal">0.000</div>
           <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">m/s</div>
         </div>
         <div class="stat-card blue">
           <div class="stat-label">PWM_left</div>
-          <div class="stat-val" id="pwmlVal">102</div>
+          <div class="stat-val" id="pwmlVal">0</div>
           <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">-255 to 255</div>
         </div>
         <div class="stat-card blue">
           <div class="stat-label">PWM_right</div>
-          <div class="stat-val" id="pwmrVal">102</div>
+          <div class="stat-val" id="pwmrVal">0</div>
           <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">-255 to 255</div>
+        </div>
+      </div>
+
+      <div style="margin: 0.75rem 0; border-top: 1px solid var(--border); padding-top: 0.75rem;">
+        <div class="section-label" style="margin-bottom:0.75rem;">Forward kinematics — encoder counts (10 Hz update)</div>
+        <div class="stats-grid">
+          <div class="stat-card" style="border-color:rgba(245,166,35,0.3)">
+            <div class="stat-label">Δticks_left</div>
+            <div class="stat-val" id="dtlVal" style="color:#F5A623;">0</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">since last update</div>
+          </div>
+          <div class="stat-card" style="border-color:rgba(245,166,35,0.3)">
+            <div class="stat-label">Δticks_right</div>
+            <div class="stat-val" id="dtrVal" style="color:#F5A623;">0</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">since last update</div>
+          </div>
+          <div class="stat-card" style="border-color:rgba(123,184,240,0.3)">
+            <div class="stat-label">total_left</div>
+            <div class="stat-val" id="tlVal" style="color:#7BB8F0;">0</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">cumulative</div>
+          </div>
+          <div class="stat-card" style="border-color:rgba(123,184,240,0.3)">
+            <div class="stat-label">total_right</div>
+            <div class="stat-val" id="trVal" style="color:#7BB8F0;">0</div>
+            <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:2px">cumulative</div>
+          </div>
         </div>
       </div>
     </div>
@@ -464,20 +490,12 @@
     </div>
 
     <div class="sidebar-section">
-      <div class="section-label">The equations</div>
-      <div class="eq-block">
-        <div><span class="highlight">v_left</span>  = v − ω × (l/2)</div>
-        <div><span class="highlight">v_right</span> = v + ω × (l/2)</div>
-        <div style="margin-top:6px"><span class="highlight">PWM</span> = (v_w / v_max) × 255</div>
-      </div>
-    </div>
-
-    <div class="sidebar-section">
       <div class="section-label">Robot parameters</div>
       <div class="param-row"><span>wheel radius r</span><span class="pval">0.0325 m</span></div>
       <div class="param-row"><span>track width l</span><span class="pval">0.215 m</span></div>
       <div class="param-row"><span>encoder N</span><span class="pval">3840 counts/rev</span></div>
       <div class="param-row"><span>v_max (placeholder)</span><span class="pval">0.5 m/s</span></div>
+      <div class="param-row"><span>encoder update rate</span><span class="pval">10 Hz</span></div>
     </div>
 
     <div class="sidebar-footer">
@@ -491,13 +509,17 @@ const canvas = document.getElementById('simCanvas');
 const ctx = canvas.getContext('2d');
 
 const l = 0.215, r_wheel = 0.0325, vmax = 0.5;
+const N = 3840;
+const ENCODER_INTERVAL = 100;
 let v = 0, omega = 0;
-// theta in standard maths convention: 0=right, PI/2=up, positive=anticlockwise
-// robot starts pointing up (forward on screen)
 let robot = { x: 0, y: 0, theta: Math.PI/2 };
 let trail = [];
 const SCALE = 180;
 let W, H, cx, cy;
+let totalLeft = 0, totalRight = 0;
+let accumLeft = 0, accumRight = 0;
+let deltaLeft = 0, deltaRight = 0;
+let lastEncoderTime = 0;
 
 function resize() {
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -554,6 +576,15 @@ function updateUI() {
   document.getElementById('ox').style.color = parseFloat(xm) < 0 ? '#E24B4A' : '#F5A623';
   document.getElementById('oy').style.color = parseFloat(ym) < 0 ? '#E24B4A' : '#F5A623';
 
+  document.getElementById('dtlVal').textContent = deltaLeft;
+  document.getElementById('dtlVal').style.color = deltaLeft === 0 ? 'var(--text2)' : deltaLeft > 0 ? '#F5A623' : '#E24B4A';
+  document.getElementById('dtrVal').textContent = deltaRight;
+  document.getElementById('dtrVal').style.color = deltaRight === 0 ? 'var(--text2)' : deltaRight > 0 ? '#F5A623' : '#E24B4A';
+  document.getElementById('tlVal').textContent = totalLeft;
+  document.getElementById('tlVal').style.color = totalLeft === 0 ? 'var(--text2)' : totalLeft > 0 ? '#7BB8F0' : '#E24B4A';
+  document.getElementById('trVal').textContent = totalRight;
+  document.getElementById('trVal').style.color = totalRight === 0 ? 'var(--text2)' : totalRight > 0 ? '#7BB8F0' : '#E24B4A';
+
   let info = '';
   const av = Math.abs(v), aw = Math.abs(omega);
   if (av < 0.01 && aw < 0.01) info = 'Both wheels stopped — WonderBot is <span>stationary</span>.';
@@ -576,6 +607,24 @@ function step() {
   robot.theta += dtheta;
   trail.push({ x: robot.x, y: robot.y });
   if (trail.length > 1200) trail.shift();
+
+  // accumulate encoder ticks this frame
+  const { vl, vr } = getWheelSpeeds();
+  const ticksPerSec = N / (2 * Math.PI * r_wheel);
+  accumLeft  += vl * dt * ticksPerSec;
+  accumRight += vr * dt * ticksPerSec;
+
+  // flush at 10Hz
+  const now = performance.now();
+  if (now - lastEncoderTime >= ENCODER_INTERVAL) {
+    deltaLeft  = Math.round(accumLeft);
+    deltaRight = Math.round(accumRight);
+    totalLeft  += deltaLeft;
+    totalRight += deltaRight;
+    accumLeft  = 0;
+    accumRight = 0;
+    lastEncoderTime = now;
+  }
 }
 
 // Convert world coords (y up) to screen coords (y down)
@@ -691,6 +740,10 @@ function setPreset(sv, sw) {
 function resetRobot() {
   robot = { x: 0, y: 0, theta: Math.PI/2 };
   trail = [];
+  totalLeft = 0; totalRight = 0;
+  accumLeft = 0; accumRight = 0;
+  deltaLeft = 0; deltaRight = 0;
+  lastEncoderTime = 0;
 }
 
 document.getElementById('vSlider').addEventListener('input', e => {
