@@ -16,9 +16,9 @@
     --text3: #555a72;
     --accent: #1D9E75;
     --accent2: #0f6e56;
-    --accent3: #9FE1CB;
-    --blue: #378ADD;
-    --blue2: #185FA5;
+    --accent3: #F5A623;
+    --blue: #7BB8F0;
+    --blue2: #4A90D9;
     --amber: #EF9F27;
     --red: #E24B4A;
     --font: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
@@ -94,6 +94,7 @@
     position: relative;
     overflow: hidden;
     border-right: 1px solid var(--border);
+    background: #ffffff;
   }
 
   canvas {
@@ -106,13 +107,13 @@
     position: absolute;
     top: 1rem;
     left: 1rem;
-    background: rgba(15,17,23,0.85);
-    border: 1px solid var(--border2);
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(0,0,0,0.12);
     border-radius: 8px;
     padding: 0.75rem 1rem;
     font-family: var(--font);
     font-size: 11px;
-    color: var(--text2);
+    color: #444;
     backdrop-filter: blur(8px);
     line-height: 1.8;
     min-width: 180px;
@@ -128,12 +129,12 @@
     bottom: 1rem;
     left: 50%;
     transform: translateX(-50%);
-    background: rgba(15,17,23,0.9);
-    border: 1px solid var(--border2);
+    background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(0,0,0,0.12);
     border-radius: 20px;
     padding: 6px 16px;
     font-size: 12px;
-    color: var(--text2);
+    color: #555;
     backdrop-filter: blur(8px);
     white-space: nowrap;
     text-align: center;
@@ -401,9 +402,12 @@
       <div class="slider-group">
         <div class="slider-header">
           <div class="slider-name">v &nbsp;<span style="font-size:11px;color:var(--text3)">linear velocity</span></div>
-          <div class="slider-value"><span id="vDisplay">0.20</span> <span class="unit">m/s</span></div>
+          <div class="slider-value"><span id="vDisplay">0.00</span> <span class="unit">m/s</span></div>
         </div>
-        <input type="range" id="vSlider" min="-0.5" max="0.5" step="0.01" value="0.2">
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" id="vSlider" min="-0.5" max="0.5" step="0.01" value="0" style="flex:1">
+          <input type="number" id="vNum" min="-0.5" max="0.5" step="0.01" value="0" style="width:64px;font-family:var(--font);font-size:12px;padding:4px 6px;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:var(--text);text-align:center">
+        </div>
         <div class="range-labels"><span>-0.5 backward</span><span>+0.5 forward</span></div>
       </div>
 
@@ -412,7 +416,10 @@
           <div class="slider-name">ω &nbsp;<span style="font-size:11px;color:var(--text3)">angular velocity</span></div>
           <div class="slider-value" style="color:var(--blue);"><span id="wDisplay">0.00</span> <span class="unit">rad/s</span></div>
         </div>
-        <input type="range" class="omega" id="wSlider" min="-2" max="2" step="0.01" value="0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="range" class="omega" id="wSlider" min="-2" max="2" step="0.01" value="0" style="flex:1">
+          <input type="number" id="wNum" min="-2" max="2" step="0.01" value="0" style="width:64px;font-family:var(--font);font-size:12px;padding:4px 6px;background:var(--surface2);border:1px solid var(--border2);border-radius:4px;color:var(--text);text-align:center">
+        </div>
         <div class="range-labels"><span>-2 clockwise</span><span>+2 anticlockwise</span></div>
       </div>
     </div>
@@ -474,7 +481,7 @@
     </div>
 
     <div class="sidebar-footer">
-      <div class="footer-text">WonderBot — Stage 2 Workshop 2.4<br>Northumbria University Robotics Course</div>
+      <div class="footer-text">WonderBot — Stage 2 Workshop 2.4<br>WonderBot Differential Drive Robotics Course</div>
     </div>
   </div>
 </main>
@@ -484,8 +491,10 @@ const canvas = document.getElementById('simCanvas');
 const ctx = canvas.getContext('2d');
 
 const l = 0.215, r_wheel = 0.0325, vmax = 0.5;
-let v = 0.2, omega = 0;
-let robot = { x: 0, y: 0, theta: 0 };
+let v = 0, omega = 0;
+// theta in standard maths convention: 0=right, PI/2=up, positive=anticlockwise
+// robot starts pointing up (forward on screen)
+let robot = { x: 0, y: 0, theta: Math.PI/2 };
 let trail = [];
 const SCALE = 180;
 let W, H, cx, cy;
@@ -497,21 +506,15 @@ function resize() {
   W = canvas.width; H = canvas.height;
   cx = W/2; cy = H/2;
 }
-
 window.addEventListener('resize', resize);
 resize();
 
 function clamp(val, lo, hi) { return Math.max(lo, Math.min(hi, val)); }
-
-function getWheelSpeeds() {
-  return { vl: v - omega*(l/2), vr: v + omega*(l/2) };
-}
-
+function getWheelSpeeds() { return { vl: v - omega*(l/2), vr: v + omega*(l/2) }; }
 function getPWM(vw) { return clamp(Math.round((vw/vmax)*255), -255, 255); }
-
 function getColor(val) {
   if (Math.abs(val) < 0.001) return 'var(--text2)';
-  return val > 0 ? '#9FE1CB' : '#E24B4A';
+  return val > 0 ? '#F5A623' : '#E24B4A';
 }
 
 function updateUI() {
@@ -538,15 +541,18 @@ function updateUI() {
   pwmrEl.textContent = pwmr;
   pwmrEl.style.color = getColor(pwmr);
 
+  // x increases rightward, y increases upward (world coords)
   const xm = (robot.x / SCALE).toFixed(2);
-  const ym = (-robot.y / SCALE).toFixed(2);
-  const deg = Math.round(((robot.theta * 180/Math.PI) % 360 + 360) % 360);
+  const ym = (robot.y / SCALE).toFixed(2);
+  // heading: 0 = forward (up on screen = PI/2 in world) -> display as degrees from forward
+  const headingRad = robot.theta - Math.PI/2;
+  const deg = Math.round(((headingRad * 180/Math.PI) % 360 + 360) % 360);
 
   document.getElementById('ox').textContent = xm + ' m';
   document.getElementById('oy').textContent = ym + ' m';
   document.getElementById('oth').textContent = deg + '°';
-  document.getElementById('ox').style.color = parseFloat(xm) < 0 ? '#E24B4A' : '#9FE1CB';
-  document.getElementById('oy').style.color = parseFloat(ym) < 0 ? '#E24B4A' : '#9FE1CB';
+  document.getElementById('ox').style.color = parseFloat(xm) < 0 ? '#E24B4A' : '#F5A623';
+  document.getElementById('oy').style.color = parseFloat(ym) < 0 ? '#E24B4A' : '#F5A623';
 
   let info = '';
   const av = Math.abs(v), aw = Math.abs(omega);
@@ -559,86 +565,7 @@ function updateUI() {
   document.getElementById('infoPill').innerHTML = info;
 }
 
-function drawGrid() {
-  ctx.save();
-  const step = SCALE * 0.25;
-  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
-  ctx.lineWidth = 0.5;
-  const ox = cx + robot.x % step, oy = cy + robot.y % step;
-  for (let x = ox % step; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for (let y = oy % step; y < H; y += step) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-  ctx.restore();
-}
-
-function worldToScreen(wx, wy) {
-  return { sx: cx + wx, sy: cy + wy };
-}
-
-function drawTrail() {
-  if (trail.length < 2) return;
-  ctx.save();
-  ctx.lineWidth = 1.5;
-  for (let i = 1; i < trail.length; i++) {
-    const alpha = (i / trail.length) * 0.6;
-    ctx.strokeStyle = `rgba(29,158,117,${alpha})`;
-    ctx.beginPath();
-    const p0 = worldToScreen(trail[i-1].x, trail[i-1].y);
-    const p1 = worldToScreen(trail[i].x, trail[i].y);
-    ctx.moveTo(p0.sx, p0.sy);
-    ctx.lineTo(p1.sx, p1.sy);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-function drawAxes() {
-  const { sx, sy } = worldToScreen(robot.x, robot.y);
-  ctx.save();
-  ctx.globalAlpha = 0.2;
-  ctx.strokeStyle = '#378ADD';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath(); ctx.moveTo(sx-12, sy); ctx.lineTo(sx+12, sy); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(sx, sy-12); ctx.lineTo(sx, sy+12); ctx.stroke();
-  ctx.restore();
-}
-
-function drawRobot() {
-  const { sx, sy } = worldToScreen(robot.x, robot.y);
-  ctx.save();
-  ctx.translate(sx, sy);
-  ctx.rotate(robot.theta + Math.PI/2);
-
-  const bw = 32, bh = 24;
-
-  ctx.shadowColor = 'rgba(29,158,117,0.4)';
-  ctx.shadowBlur = 12;
-  ctx.fillStyle = '#1D9E75';
-  ctx.beginPath();
-  ctx.roundRect(-bw/2, -bh/2, bw, bh, 4);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-
-  ctx.fillStyle = '#0f6e56';
-  ctx.fillRect(-bw/2-5, -7, 5, 14);
-  ctx.fillRect(bw/2, -7, 5, 14);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  ctx.beginPath();
-  ctx.roundRect(-bw/2+3, -bh/2+3, bw-6, bh/2-4, 2);
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.beginPath();
-  ctx.moveTo(0, -bh/2-8);
-  ctx.lineTo(-5, -bh/2);
-  ctx.lineTo(5, -bh/2);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.restore();
-}
-
+// Physics in standard maths coordinates (y up, anticlockwise positive)
 function step() {
   const dt = 0.016;
   const dtheta = omega * dt;
@@ -649,6 +576,93 @@ function step() {
   robot.theta += dtheta;
   trail.push({ x: robot.x, y: robot.y });
   if (trail.length > 1200) trail.shift();
+}
+
+// Convert world coords (y up) to screen coords (y down)
+function toScreen(wx, wy) {
+  return { sx: cx + wx, sy: cy - wy };
+}
+
+function drawGrid() {
+  ctx.save();
+  const step = SCALE * 0.25;
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 0.5;
+  // grid lines in screen space
+  for (let x = 0; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (let y = 0; y < H; y += step) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+}
+
+function drawTrail() {
+  if (trail.length < 2) return;
+  ctx.save();
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i < trail.length; i++) {
+    const alpha = (i / trail.length) * 0.6;
+    ctx.strokeStyle = `rgba(29,158,117,${alpha})`;
+    ctx.beginPath();
+    const p0 = toScreen(trail[i-1].x, trail[i-1].y);
+    const p1 = toScreen(trail[i].x, trail[i].y);
+    ctx.moveTo(p0.sx, p0.sy);
+    ctx.lineTo(p1.sx, p1.sy);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawAxes() {
+  const { sx, sy } = toScreen(robot.x, robot.y);
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  ctx.strokeStyle = '#378ADD';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(sx-12, sy); ctx.lineTo(sx+12, sy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(sx, sy-12); ctx.lineTo(sx, sy+12); ctx.stroke();
+  ctx.restore();
+}
+
+function drawRobot() {
+  const { sx, sy } = toScreen(robot.x, robot.y);
+  ctx.save();
+  ctx.translate(sx, sy);
+  // theta is in standard maths coords (anticlockwise from right)
+  // canvas rotation is clockwise from right, so negate
+  // robot body drawn pointing up (negative y in canvas = up)
+  ctx.rotate(-robot.theta + Math.PI/2);
+
+  const bw = 24, bh = 32;
+
+  ctx.shadowColor = 'rgba(29,158,117,0.25)';
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#1D9E75';
+  ctx.beginPath();
+  ctx.roundRect(-bw/2, -bh/2, bw, bh, 4);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // wheels on left and right sides
+  ctx.fillStyle = '#0f6e56';
+  ctx.fillRect(-bw/2-5, -10, 5, 20);
+  ctx.fillRect(bw/2, -10, 5, 20);
+
+  // windscreen highlight at front (top)
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.roundRect(-bw/2+3, -bh/2+3, bw-6, bh/3, 2);
+  ctx.fill();
+
+  // direction arrow at front (top) — dark orange
+  ctx.fillStyle = '#C8630A';
+  ctx.beginPath();
+  ctx.moveTo(0, -bh/2-9);
+  ctx.lineTo(-6, -bh/2+1);
+  ctx.lineTo(6, -bh/2+1);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
 }
 
 function draw() {
@@ -670,15 +684,37 @@ function setPreset(sv, sw) {
   v = sv; omega = sw;
   document.getElementById('vSlider').value = sv;
   document.getElementById('wSlider').value = sw;
+  document.getElementById('vNum').value = sv.toFixed(2);
+  document.getElementById('wNum').value = sw.toFixed(2);
 }
 
 function resetRobot() {
-  robot = { x: 0, y: 0, theta: 0 };
+  robot = { x: 0, y: 0, theta: Math.PI/2 };
   trail = [];
 }
 
-document.getElementById('vSlider').addEventListener('input', e => { v = parseFloat(e.target.value); });
-document.getElementById('wSlider').addEventListener('input', e => { omega = parseFloat(e.target.value); });
+document.getElementById('vSlider').addEventListener('input', e => {
+  v = parseFloat(e.target.value);
+  document.getElementById('vNum').value = v.toFixed(2);
+});
+document.getElementById('vNum').addEventListener('input', e => {
+  const val = parseFloat(e.target.value);
+  if (!isNaN(val)) {
+    v = Math.max(-0.5, Math.min(0.5, val));
+    document.getElementById('vSlider').value = v;
+  }
+});
+document.getElementById('wSlider').addEventListener('input', e => {
+  omega = parseFloat(e.target.value);
+  document.getElementById('wNum').value = omega.toFixed(2);
+});
+document.getElementById('wNum').addEventListener('input', e => {
+  const val = parseFloat(e.target.value);
+  if (!isNaN(val)) {
+    omega = Math.max(-2, Math.min(2, val));
+    document.getElementById('wSlider').value = omega;
+  }
+});
 
 loop();
 </script>
